@@ -58,6 +58,13 @@ func newIndexReaderWithLimitTag(db ethdb.KeyValueReader, state stateIdent, limit
 	}, nil
 }
 
+var (
+	// errIndexReaderStale is returned when the index has moved past the disk
+	// layer the read was taken from: a block commit indexed its state history
+	// before the layer tree published the new disk layer.
+	errIndexReaderStale = errors.New("index reader is stale")
+)
+
 // readGreaterThan locates the first element that is greater than the specified
 // id. If no such element is found, MaxUint64 is returned.
 //
@@ -70,7 +77,7 @@ func (r *indexReaderWithLimitTag) readGreaterThan(id uint64, lastIndexed uint64)
 	// histories are unindexed. For simplicity, the reader is marked as stale
 	// instead of being refreshed, as this scenario is highly unlikely.
 	if r.limit > lastIndexed {
-		return 0, fmt.Errorf("index reader is stale, limit: %d, last-indexed: %d", r.limit, lastIndexed)
+		return 0, fmt.Errorf("%w, limit: %d, last-indexed: %d", errIndexReaderStale, r.limit, lastIndexed)
 	}
 	// Try to find the element which is greater than the specified target
 	res, err := r.reader.readGreaterThan(id)
